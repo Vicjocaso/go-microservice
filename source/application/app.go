@@ -13,6 +13,7 @@ import (
 	_ "github.com/lib/pq"
 
 	"file-manager/auth"
+	"file-manager/domain/file"
 	"file-manager/metadata"
 	"file-manager/storage"
 	"file-manager/telemetry"
@@ -121,6 +122,9 @@ func (a *App) loadRoutes() {
 	a.router.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "File Manager Service.")
 	})
+
+	previewHandler := file.NewPreviewHandler()
+	a.router.POST("/v1/files/preview", previewHandler.PreviewTemplate)
 
 	if a.storageManager != nil && a.storageManager.HasAdapters() {
 		fileGroup := a.router.Group("/v1/files")

@@ -17,6 +17,5 @@ func (a *App) loadFileRoutes(g *echo.Group) {
 	fileHandler := file.NewFileHandler(fileRepo)
 
 	g.POST("/render-template", fileHandler.Insert)
-	g.POST("/preview", fileHandler.PreviewTemplate)
 
 }

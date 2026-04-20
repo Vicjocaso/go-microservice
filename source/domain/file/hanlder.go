@@ -24,6 +24,12 @@ func NewFileHandler(fr *FileRepo) *FileHandler {
 	return &FileHandler{fileRepo: fr}
 }
 
+// NewPreviewHandler returns a handler that only supports PreviewTemplate (Gotenberg PDF preview).
+// It does not require cloud storage; do not use other methods on this handler.
+func NewPreviewHandler() *FileHandler {
+	return &FileHandler{fileRepo: nil}
+}
+
 // UploadFile handles file upload via POST request.
 func (h *FileHandler) UploadFile(c echo.Context) error {
 	// serverID, err := auth.GetServerIDFromContext(c)
