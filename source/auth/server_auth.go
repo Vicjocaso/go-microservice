@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
@@ -40,6 +41,11 @@ func checkPINHash(pin, hash string) bool {
 func ServerAuthMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			path := strings.TrimSuffix(c.Request().URL.Path, "/")
+			if path == "/health" {
+				return next(c)
+			}
+
 			serverID := c.Request().Header.Get("X-Server-ID")
 			pin := c.Request().Header.Get("X-PIN")
 

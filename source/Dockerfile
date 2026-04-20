@@ -11,8 +11,8 @@ RUN go mod download
 # Copy the code into the container.
 COPY . .
 
-# Set necessary environment variables needed for our image and build the API server.
-ENV CGO_ENABLED=0 GOOS=linux GOARCH=arm64
+# Native arch matches the machine running docker build (e.g. amd64 on Railway).
+ENV CGO_ENABLED=0 GOOS=linux
 RUN go build -ldflags="-s -w" -o main .
 
 # Empty image
@@ -21,8 +21,7 @@ FROM scratch
 # Copy binary and config files from /build to root folder of scratch container.
 COPY --from=builder /build/main .
 
-# Expose
-EXPOSE 3000 3000
+EXPOSE 3000
 
 # Command to run when starting the container.
 ENTRYPOINT ["/main"]

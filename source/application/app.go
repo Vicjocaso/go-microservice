@@ -36,12 +36,14 @@ func New(config *AppConfig) *App {
 		config: config,
 	}
 
-	// Initialize storage manager
 	storageManager, err := storage.NewStorageManager(config)
 	if err != nil {
 		log.Fatalf("Failed to initialize storage manager: %v", err)
 	}
 	app.storageManager = storageManager
+	if storageManager == nil || !storageManager.HasAdapters() {
+		log.Print("No cloud storage configured; file API routes (/v1/files) are disabled.")
+	}
 
 	// Initialize Metadata Store (using in-memory for demo)
 	metadataStore := metadata.NewInMemoryMetadataStore()
@@ -55,13 +57,12 @@ func New(config *AppConfig) *App {
 func (a *App) Start(ctx context.Context) error {
 	logger := telemetry.SLogger(ctx)
 
-	// Start server
+	// Listen on all interfaces (required for containers / Railway; localhost would reject proxied traffic).
 	server := &http.Server{
-		Addr:    fmt.Sprintf("localhost:%d", a.config.ServerPort),
+		Addr:    fmt.Sprintf(":%d", a.config.ServerPort),
 		Handler: a.router,
 	}
 
-	// Database connection is now established in New()
 	logger.Info("Starting application server...")
 
 	ch := make(chan error, 1)
@@ -78,7 +79,7 @@ func (a *App) Start(ctx context.Context) error {
 	}()
 
 	logger.Info("Application startup complete.")
-	logger.Info(fmt.Sprintf("Listening on address localhost, port %d", a.config.ServerPort))
+	logger.Info(fmt.Sprintf("Listening on :%d", a.config.ServerPort))
 
 	select {
 	// Select one of the channels, the one that returns first
@@ -86,7 +87,6 @@ func (a *App) Start(ctx context.Context) error {
 		return err
 	case <-ctx.Done(): // This channel returns on SIGINT
 		logger.Info("Shutting down gracefully...")
-		// Close database connection
 		if a.db != nil {
 			if err := a.db.Close(); err != nil {
 				errMsg := map[string]string{"Error": err.Error()}
@@ -122,7 +122,8 @@ func (a *App) loadRoutes() {
 		return c.String(http.StatusOK, "File Manager Service.")
 	})
 
-	// App V1
-	fileGroup := a.router.Group("/v1/files")
-	a.loadFileRoutes(fileGroup)
+	if a.storageManager != nil && a.storageManager.HasAdapters() {
+		fileGroup := a.router.Group("/v1/files")
+		a.loadFileRoutes(fileGroup)
+	}
 }

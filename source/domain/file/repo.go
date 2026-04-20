@@ -27,7 +27,9 @@ type FileRepo struct {
 }
 
 func NewFileRepo(sm *storage.StorageManager, ms metadata.MetadataStore, cfg *config.AppConfig) (*FileRepo, error) {
-
+	if sm == nil || !sm.HasAdapters() {
+		return nil, fmt.Errorf("file repository requires configured cloud storage")
+	}
 	return &FileRepo{
 		storageManager: sm,
 		metadataStore:  ms,

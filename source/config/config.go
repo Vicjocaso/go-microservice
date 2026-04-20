@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
+	"net/url"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -40,6 +41,50 @@ type AppConfig struct {
 	StorageConfig StorageConfig
 }
 
+// applyDatabaseURL parses a postgres/postgresql URL (including Railway's DATABASE_URL)
+// into DatabaseConfig. Query parameters such as sslmode are honored when present.
+func applyDatabaseURL(cfg *AppConfig, raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("parse database URL: %w", err)
+	}
+	if u.Scheme != "postgres" && u.Scheme != "postgresql" {
+		return fmt.Errorf("unsupported database URL scheme %q (expected postgres)", u.Scheme)
+	}
+	if u.User != nil {
+		cfg.Database.Username = u.User.Username()
+		if pw, ok := u.User.Password(); ok {
+			cfg.Database.Password = pw
+		}
+	}
+	host := u.Hostname()
+	if host == "" {
+		return fmt.Errorf("database URL missing host")
+	}
+	cfg.Database.Host = host
+	if portStr := u.Port(); portStr != "" {
+		port, err := strconv.ParseUint(portStr, 10, 16)
+		if err != nil {
+			return fmt.Errorf("invalid database port: %w", err)
+		}
+		cfg.Database.Port = uint16(port)
+	} else {
+		cfg.Database.Port = 5432
+	}
+	dbName := strings.TrimPrefix(u.Path, "/")
+	if dbName == "" {
+		return fmt.Errorf("database URL missing database name")
+	}
+	if i := strings.Index(dbName, "/"); i >= 0 {
+		dbName = dbName[:i]
+	}
+	cfg.Database.Name = dbName
+	if ssl := u.Query().Get("sslmode"); ssl != "" {
+		cfg.Database.SslMode = ssl
+	}
+	return nil
+}
+
 func LoadConfig() *AppConfig {
 	cfg := AppConfig{
 		GotenbergURL: "http://localhost:3001",
@@ -65,33 +110,15 @@ func LoadConfig() *AppConfig {
 	}
 
 	if secrets, exists := os.LookupEnv("SECRETS"); exists {
-		// Parse secrets which is a JSON string into a map
 		secretsMap := make(map[string]string)
 		err := json.Unmarshal([]byte(secrets), &secretsMap)
 		if err != nil {
 			log.Fatalf("Error parsing secrets: %v", err)
 		}
 
-		if dbUrl, exists := secretsMap["DATABASE_URL"]; exists {
-			// Remove protocol from URL
-			parts := strings.Split(dbUrl, "://")
-
-			// Build regex to extract username, password, host, port, and name
-			regex := regexp.MustCompile(`^(.*):(.*)@(.*):(\d+)/(.*)$`)
-			matches := regex.FindStringSubmatch(parts[1])
-
-			// Parse port into uint16
-			port, err := strconv.ParseUint(matches[4], 10, 16)
-			if err != nil {
-				log.Fatalf("Error parsing port: %v", err)
-			}
-
-			if len(matches) == 6 {
-				cfg.Database.Username = matches[1]
-				cfg.Database.Password = matches[2]
-				cfg.Database.Host = matches[3]
-				cfg.Database.Port = uint16(port)
-				cfg.Database.Name = matches[5]
+		if dbURL, exists := secretsMap["DATABASE_URL"]; exists {
+			if err := applyDatabaseURL(&cfg, dbURL); err != nil {
+				log.Fatalf("Invalid DATABASE_URL in SECRETS: %v", err)
 			}
 		}
 
@@ -131,12 +158,48 @@ func LoadConfig() *AppConfig {
 		}
 	}
 
-	cfg.StorageConfig.AWSRegion = os.Getenv("AWS_REGION")
-	cfg.StorageConfig.AWSAccessKeyID = os.Getenv("AWS_ACCESS_KEY_ID")
-	cfg.StorageConfig.AWSSecretAccessKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
+	// Railway and other hosts inject DATABASE_URL directly when Postgres is attached.
+	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+		if err := applyDatabaseURL(&cfg, dbURL); err != nil {
+			log.Fatalf("Invalid DATABASE_URL: %v", err)
+		}
+	}
+
+	if bucket := os.Getenv("BUCKET_NAME"); bucket != "" {
+		cfg.BucketName = bucket
+	}
+	if cloud := os.Getenv("DEFAULT_CLOUD"); cloud != "" {
+		cfg.StorageConfig.DefaultCloud = cloud
+	}
+
+	// Prefer empty-env checks so JSON SECRETS values are not wiped when variables are unset.
+	if v := os.Getenv("AWS_REGION"); v != "" {
+		cfg.StorageConfig.AWSRegion = v
+	}
+	if v := os.Getenv("AWS_ACCESS_KEY_ID"); v != "" {
+		cfg.StorageConfig.AWSAccessKeyID = v
+	}
+	if v := os.Getenv("AWS_SECRET_ACCESS_KEY"); v != "" {
+		cfg.StorageConfig.AWSSecretAccessKey = v
+	}
 
 	if gotenbergEnv := os.Getenv("GOTENBERG_URL"); gotenbergEnv != "" {
 		cfg.GotenbergURL = gotenbergEnv
+	}
+
+	// Railway sets PORT; SERVER_PORT is supported for local .env parity.
+	if p := os.Getenv("PORT"); p != "" {
+		if parsed, err := strconv.ParseUint(p, 10, 16); err == nil {
+			cfg.ServerPort = uint16(parsed)
+		} else {
+			log.Fatalf("Invalid PORT %q: %v", p, err)
+		}
+	} else if p := os.Getenv("SERVER_PORT"); p != "" {
+		if parsed, err := strconv.ParseUint(p, 10, 16); err == nil {
+			cfg.ServerPort = uint16(parsed)
+		} else {
+			log.Fatalf("Invalid SERVER_PORT %q: %v", p, err)
+		}
 	}
 
 	return &cfg
@@ -144,15 +207,14 @@ func LoadConfig() *AppConfig {
 
 func (c *AppConfig) LoadDbUri() string {
 	db := c.Database
-	databaseUri := fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		db.Username,
-		db.Password,
-		db.Host,
-		db.Port,
-		db.Name,
-		db.SslMode,
-	)
-
-	return databaseUri
+	u := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(db.Username, db.Password),
+		Host:   net.JoinHostPort(db.Host, strconv.FormatUint(uint64(db.Port), 10)),
+		Path:   "/" + db.Name,
+	}
+	if db.SslMode != "" {
+		u.RawQuery = url.Values{"sslmode": []string{db.SslMode}}.Encode()
+	}
+	return u.String()
 }

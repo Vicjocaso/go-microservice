@@ -35,10 +35,9 @@ func NewStorageManager(cfg *config.AppConfig) (*StorageManager, error) {
 	}
 
 	if len(adapters) == 0 {
-		return nil, fmt.Errorf("no cloud storage adapters configured. Please check your.env file")
+		return nil, nil
 	}
 
-	// Validate default cloud
 	if _, ok := adapters[cfg.StorageConfig.DefaultCloud]; !ok {
 		return nil, fmt.Errorf("default cloud '%s' is not configured or initialized", cfg.StorageConfig.DefaultCloud)
 	}
@@ -47,6 +46,11 @@ func NewStorageManager(cfg *config.AppConfig) (*StorageManager, error) {
 		adapters:     adapters,
 		defaultCloud: cfg.StorageConfig.DefaultCloud,
 	}, nil
+}
+
+// HasAdapters reports whether any cloud storage backend is configured.
+func (sm *StorageManager) HasAdapters() bool {
+	return sm != nil && len(sm.adapters) > 0
 }
 
 // GetAdapter returns the Storage adapter for the given cloud provider.
