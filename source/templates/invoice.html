@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Invoice {{index . "InvoiceNumber"}}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      margin: 0;
+      padding: 32px;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+    .paper {
+      max-width: 720px;
+      margin: 0 auto;
+      background: #fff;
+      color: #0f172a;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,.45);
+    }
+    .head {
+      padding: 28px 32px;
+      background: linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899);
+      color: #fff;
+    }
+    .head h1 {
+      margin: 0 0 4px;
+      font-size: 1.75rem;
+      letter-spacing: -0.02em;
+    }
+    .head p { margin: 0; opacity: 0.92; font-size: 0.9rem; }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 24px 32px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .meta dl { margin: 0; }
+    .meta dt { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 4px; }
+    .meta dd { margin: 0; font-weight: 600; font-size: 1rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    th, td { padding: 12px 16px; text-align: left; }
+    thead th {
+      background: #f8fafc;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #64748b;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .totals {
+      margin-left: auto;
+      width: 280px;
+      padding: 16px 32px 32px;
+    }
+    .totals table { margin-top: 8px; }
+    .totals td { border: none; padding: 6px 0; }
+    .totals .grand td { font-size: 1.25rem; font-weight: 700; padding-top: 12px; border-top: 2px solid #e2e8f0; }
+    .footer {
+      padding: 16px 32px 28px;
+      font-size: 0.75rem;
+      color: #64748b;
+      text-align: center;
+      border-top: 1px solid #e2e8f0;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.2);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="paper">
+    <div class="head">
+      <h1>{{index . "CompanyName"}}</h1>
+      <p><span class="badge">INVOICE</span> &nbsp;·&nbsp; {{index . "Tagline"}}</p>
+    </div>
+    <div class="meta">
+      <dl>
+        <dt>Bill to</dt>
+        <dd>{{index . "ClientName"}}</dd>
+      </dl>
+      <dl>
+        <dt>Invoice #</dt>
+        <dd>{{index . "InvoiceNumber"}}</dd>
+      </dl>
+      <dl>
+        <dt>Date</dt>
+        <dd>{{index . "InvoiceDate"}}</dd>
+      </dl>
+      <dl>
+        <dt>Due</dt>
+        <dd>{{index . "DueDate"}}</dd>
+      </dl>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="num">Qty</th>
+          <th class="num">Unit</th>
+          <th class="num">Line</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range $i, $row := index . "LineItems"}}
+        <tr>
+          <td>{{index $row "Description"}}</td>
+          <td class="num">{{index $row "Qty"}}</td>
+          <td class="num">{{index $row "UnitPrice"}}</td>
+          <td class="num">{{index $row "LineTotal"}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    <div class="totals">
+      <table>
+        <tr><td>Subtotal</td><td class="num">{{index . "Subtotal"}}</td></tr>
+        <tr><td>Tax ({{index . "TaxRate"}})</td><td class="num">{{index . "TaxAmount"}}</td></tr>
+        <tr class="grand"><td>Total due</td><td class="num">{{index . "Total"}}</td></tr>
+      </table>
+    </div>
+    <div class="footer">
+      {{index . "FooterNote"}} · {{index . "CompanyName"}}
+    </div>
+  </div>
+</body>
+</html>

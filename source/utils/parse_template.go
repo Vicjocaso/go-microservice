@@ -2,13 +2,13 @@ package utils
 
 import (
 	"bytes"
-	"file-manager/config"
 	"fmt"
 	"html/template"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"reflect"
+	"strings"
 )
 
 func ParseTemplate(templateBytes []byte, templateData map[string]interface{}) (bytes.Buffer, string, error) {
@@ -60,13 +60,15 @@ func ParseTemplate(templateBytes []byte, templateData map[string]interface{}) (b
 	return formBuf, contentType, nil
 }
 
-func ParseTemplateToPDF(formBuf bytes.Buffer, contentType string) (bytes.Buffer, error) {
-
-	// Load configuration to get the Gotenberg URL
-	cfg := config.LoadConfig()
-
-	// Send to PDF conversion service goteb
-	pdfServiceURL := fmt.Sprintf("%s/forms/chromium/convert/html", cfg.GotenbergURL)
+// ParseTemplateToPDF sends rendered HTML to Gotenberg. gotenbergBaseURL must be the service base
+// (e.g. from AppConfig.GotenbergURL), not localhost unless that is intentional.
+func ParseTemplateToPDF(gotenbergBaseURL string, formBuf bytes.Buffer, contentType string) (bytes.Buffer, error) {
+	s := strings.ReplaceAll(strings.ReplaceAll(gotenbergBaseURL, "\n", ""), "\r", "")
+	base := strings.TrimRight(strings.TrimSpace(s), "/")
+	if base == "" {
+		base = "http://localhost:3001"
+	}
+	pdfServiceURL := base + "/forms/chromium/convert/html"
 	req, err := http.NewRequest("POST", pdfServiceURL, &formBuf)
 	if err != nil {
 		return bytes.Buffer{}, err

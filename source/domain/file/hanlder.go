@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"file-manager/auth"
+	"file-manager/config"
 	"file-manager/telemetry"
 	"file-manager/utils"
 
@@ -17,17 +18,19 @@ import (
 
 type FileHandler struct {
 	fileRepo *FileRepo
+	cfg      *config.AppConfig
 }
 
 // NewFileHandler creates a new FileHandler instance.
 func NewFileHandler(fr *FileRepo) *FileHandler {
-	return &FileHandler{fileRepo: fr}
+	return &FileHandler{fileRepo: fr, cfg: fr.appConfig}
 }
 
 // NewPreviewHandler returns a handler that only supports PreviewTemplate (Gotenberg PDF preview).
 // It does not require cloud storage; do not use other methods on this handler.
-func NewPreviewHandler() *FileHandler {
-	return &FileHandler{fileRepo: nil}
+// cfg must be the same AppConfig used at application startup so GOTENBERG_URL is applied once.
+func NewPreviewHandler(cfg *config.AppConfig) *FileHandler {
+	return &FileHandler{fileRepo: nil, cfg: cfg}
 }
 
 // UploadFile handles file upload via POST request.
@@ -143,7 +146,7 @@ func (fh *FileHandler) Insert(c echo.Context) error {
 	}
 
 	// Send to PDF conversion service goteb
-	pdfBuf, err := utils.ParseTemplateToPDF(formBuf, contentType)
+	pdfBuf, err := utils.ParseTemplateToPDF(fh.cfg.GotenbergURL, formBuf, contentType)
 	if err != nil {
 		errMsg := map[string]string{"Error": fmt.Sprintf("Failed to convert to PDF: %v", err)}
 		logger.Error("Failed to convert to PDF", errMsg)
@@ -230,8 +233,7 @@ func (fh *FileHandler) PreviewTemplate(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, errMsg)
 	}
 
-	// Send to PDF conversion service goteb
-	pdfBuf, err := utils.ParseTemplateToPDF(formBuf, contentType)
+	pdfBuf, err := utils.ParseTemplateToPDF(fh.cfg.GotenbergURL, formBuf, contentType)
 	if err != nil {
 		errMsg := map[string]string{"Error": fmt.Sprintf("Failed to convert to PDF: %v", err)}
 		logger.Error("Failed to convert to PDF", errMsg)

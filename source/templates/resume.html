@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{{index . "FullName"}} — Resume</title>
+  <style>
+    * { box-sizing: border-box; }
+    @page { margin: 18mm; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      margin: 0;
+      padding: 28px 32px;
+      color: #1e293b;
+      font-size: 10.5pt;
+      line-height: 1.45;
+      background: #fff;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; }
+    header {
+      border-bottom: 3px solid #0ea5e9;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 1.65rem;
+      letter-spacing: -0.03em;
+      color: #0f172a;
+    }
+    .subtitle { margin: 0; color: #64748b; font-size: 0.95rem; }
+    .contact {
+      margin-top: 10px;
+      font-size: 0.82rem;
+      color: #475569;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 16px;
+    }
+    .contact span::before { content: "· "; color: #cbd5e1; }
+    .contact span:first-child::before { content: ""; }
+    h2 {
+      margin: 20px 0 8px;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #0ea5e9;
+    }
+    .summary { margin: 0; color: #334155; }
+    .item { margin-bottom: 14px; page-break-inside: avoid; }
+    .item-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 4px 12px;
+      align-items: baseline;
+    }
+    .item-head strong { font-size: 0.98rem; color: #0f172a; }
+    .item-head em { font-style: normal; font-size: 0.85rem; color: #64748b; }
+    .item .role { font-weight: 600; color: #334155; font-size: 0.88rem; margin: 2px 0 4px; }
+    .item ul { margin: 0; padding-left: 1.1rem; color: #475569; font-size: 0.88rem; }
+    .item li { margin-bottom: 3px; }
+    .skills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .skills span {
+      background: #f1f5f9;
+      color: #334155;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+    .edu .org { font-weight: 600; color: #0f172a; }
+    .edu .detail { font-size: 0.85rem; color: #64748b; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>{{index . "FullName"}}</h1>
+      <p class="subtitle">{{index . "Headline"}}</p>
+      <div class="contact">
+        <span>{{index . "Email"}}</span>
+        <span>{{index . "Phone"}}</span>
+        <span>{{index . "Location"}}</span>
+        <span>{{index . "Website"}}</span>
+      </div>
+    </header>
+
+    <section>
+      <h2>Summary</h2>
+      <p class="summary">{{index . "Summary"}}</p>
+    </section>
+
+    <section>
+      <h2>Experience</h2>
+      {{range $i, $job := index . "Experience"}}
+      <div class="item">
+        <div class="item-head">
+          <strong>{{index $job "Company"}}</strong>
+          <em>{{index $job "Dates"}}</em>
+        </div>
+        <div class="role">{{index $job "Title"}}</div>
+        <ul>
+          {{range $j, $bullet := index $job "Highlights"}}
+          <li>{{$bullet}}</li>
+          {{end}}
+        </ul>
+      </div>
+      {{end}}
+    </section>
+
+    <section>
+      <h2>Education</h2>
+      {{range $i, $edu := index . "Education"}}
+      <div class="item edu">
+        <div class="item-head">
+          <strong class="org">{{index $edu "School"}}</strong>
+          <em>{{index $edu "Year"}}</em>
+        </div>
+        <div class="detail">{{index $edu "Degree"}} — {{index $edu "Detail"}}</div>
+      </div>
+      {{end}}
+    </section>
+
+    <section>
+      <h2>Skills</h2>
+      <div class="skills">
+        {{range $i, $s := index . "Skills"}}
+        <span>{{$s}}</span>
+        {{end}}
+      </div>
+    </section>
+  </div>
+</body>
+</html>

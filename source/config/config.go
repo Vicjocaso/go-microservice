@@ -202,7 +202,19 @@ func LoadConfig() *AppConfig {
 		}
 	}
 
+	cfg.GotenbergURL = sanitizeOneLineURL(cfg.GotenbergURL)
+	if cfg.GotenbergURL == "" {
+		cfg.GotenbergURL = "http://localhost:3001"
+	}
+
 	return &cfg
+}
+
+// sanitizeOneLineURL removes accidental newlines/carriage returns from env or pasted values.
+func sanitizeOneLineURL(s string) string {
+	s = strings.ReplaceAll(s, "\n", "")
+	s = strings.ReplaceAll(s, "\r", "")
+	return strings.TrimSpace(s)
 }
 
 func (c *AppConfig) LoadDbUri() string {

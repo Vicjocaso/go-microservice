@@ -37,6 +37,8 @@ func New(config *AppConfig) *App {
 		config: config,
 	}
 
+	log.Printf("Gotenberg (PDF) base URL: %s", config.GotenbergURL)
+
 	storageManager, err := storage.NewStorageManager(config)
 	if err != nil {
 		log.Fatalf("Failed to initialize storage manager: %v", err)
@@ -123,7 +125,7 @@ func (a *App) loadRoutes() {
 		return c.String(http.StatusOK, "File Manager Service.")
 	})
 
-	previewHandler := file.NewPreviewHandler()
+	previewHandler := file.NewPreviewHandler(a.config)
 	a.router.POST("/v1/files/preview", previewHandler.PreviewTemplate)
 
 	if a.storageManager != nil && a.storageManager.HasAdapters() {
